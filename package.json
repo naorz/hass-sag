@@ -1,0 +1,17 @@
+{
+  "name": "generator-profile",
+  "version": "1.0.0",
+  "description": "",
+  "main": "generator.ts",
+  "scripts": {
+    "start": "npx zx generator.ts",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "type": "module",
+  "devDependencies": {
+    "@types/node": "^25.0.9",
+    "zx": "^8.8.5"
+  }
+}
