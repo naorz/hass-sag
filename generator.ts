@@ -1,29 +1,26 @@
 #!/usr/bin/env zx
 
 /**
- * @fileoverview Automation script for Cloudflare mTLS and Secure Portal setup.
- * Follows Google TypeScript Style Guide.
- * * Usage: npx zx setup-certs.ts
+ * @fileoverview Infrastructure automation tool.
+ * Standards: Google TS Style, No Enums, Strict File Overwrite Checks.
  */
 
 import { $, question, chalk, fs, os } from 'zx';
 import { randomUUID } from 'node:crypto';
 import * as path from 'node:path';
 
-// Disable verbose shell echoing for cleaner output.
 $.verbose = false;
 
-/** Defines the execution scope of the script. */
 const OperationMode = {
-  FULL_SETUP : 'FULL_SETUP',
-  MTLS_ONLY : 'MTLS_ONLY',
+  FULL_SETUP: 'FULL_SETUP',
+  MTLS_ONLY: 'MTLS_ONLY',
   APPLE_PROFILE_ONLY: 'APPLE_PROFILE_ONLY',
-  PORTAL_ONLY : 'PORTAL_ONLY',
-} as const
+  PORTAL_ONLY: 'PORTAL_ONLY',
+  GITHUB_SSH: 'GITHUB_SSH',
+} as const;
 
-type OperationModeValue = typeof OperationMode[keyof typeof OperationMode]
+type OperationModeValue = typeof OperationMode[keyof typeof OperationMode];
 
-/** Configuration interface for the generator. */
 interface GeneratorConfig {
   mode: OperationModeValue;
   workDir: string;
@@ -32,58 +29,44 @@ interface GeneratorConfig {
   portalSubdomain: string;
 }
 
-/**
- * Class responsible for orchestrating the secure access setup.
- * Encapsulates state and logic for certificate generation and configuration.
- */
 class SecureAccessGenerator {
   private config: GeneratorConfig;
 
   constructor() {
     this.config = {
       mode: OperationMode.FULL_SETUP,
-      workDir: './setup',
+      workDir: '',
       domain: '',
       haSubdomain: 'ha',
       portalSubdomain: 'setup',
     };
   }
 
-  /**
-   * Main entry point to run the generator.
-   */
   public async run(): Promise<void> {
     this.printHeader();
-    
-    // 1. Select Mode
     await this.selectOperationMode();
 
-    // 2. Gather Common Config (Path/Domain is needed for all operations)
-    await this.gatherCommonConfiguration();
+    if (this.config.mode === OperationMode.GITHUB_SSH) {
+      await this.onboardGithubUser();
+      return;
+    }
 
-    // 3. Ensure Directories Exist
+    await this.gatherCommonConfiguration();
     await this.scaffoldDirectories();
 
-    // 4. Execute Flow based on Mode
     switch (this.config.mode) {
       case OperationMode.FULL_SETUP:
         await this.generateMtlsCertificates();
         await this.generateAppleProfile();
         await this.generatePortalConfiguration();
         break;
-
       case OperationMode.MTLS_ONLY:
         await this.generateMtlsCertificates();
         break;
-
       case OperationMode.APPLE_PROFILE_ONLY:
-        if (this.verifyPrerequisites(['client.key', 'client.pem'])) {
-          await this.generateAppleProfile();
-        }
+        await this.generateAppleProfile();
         break;
-
       case OperationMode.PORTAL_ONLY:
-        // We warn but don't hard stop if p12 is missing, we just skip copying it.
         await this.generatePortalConfiguration();
         break;
     }
@@ -91,215 +74,153 @@ class SecureAccessGenerator {
     this.printSummary();
   }
 
-  /**
-   * Prints the application header.
-   */
   private printHeader(): void {
-    console.log(chalk.bold.magenta('\n--- Cloudflare mTLS & Secure Portal Generator (2026 Standards) ---'));
-    console.log(chalk.gray('Initializing secure configuration sequence...\n'));
+    console.log(chalk.bold.magenta('\n--- Secure Infrastructure Tool ---'));
   }
 
-  /**
-   * Interactive menu to select the operation mode.
-   */
   private async selectOperationMode(): Promise<void> {
-    console.log(chalk.blue('--- Select Operation Mode ---'));
-    console.log('1. Full Setup (Generate Keys, Apple Profile, and Portal)');
-    console.log('2. mTLS Identity Only (Keys & CSR)');
-    console.log('3. Apple Profile Only (Regenerate .mobileconfig from existing keys)');
-    console.log('4. Portal Configuration Only (Docker Compose & FileBrowser)');
+    console.log(chalk.blue('--- Select Operation ---'));
+    console.log('1. Full Setup (mTLS + Portal)');
+    console.log('2. mTLS Identity Only');
+    console.log('3. Apple Profile Only');
+    console.log('4. Portal Only');
+    console.log('5. GitHub SSH Onboarding');
     
-    const choice = await question(chalk.cyan('Select option [1-4] (default 1): ')) || '1';
-
-    switch (choice.trim()) {
-      case '2':
-        this.config.mode = OperationMode.MTLS_ONLY;
-        break;
-      case '3':
-        this.config.mode = OperationMode.APPLE_PROFILE_ONLY;
-        break;
-      case '4':
-        this.config.mode = OperationMode.PORTAL_ONLY;
-        break;
-      default:
-        this.config.mode = OperationMode.FULL_SETUP;
-    }
-    console.log(chalk.gray(`Selected Mode: ${this.config.mode}\n`));
+    const choice = await question(chalk.cyan('Select option [1-5]: ')) || '1';
+    const map: Record<string, OperationModeValue> = {
+      '1': OperationMode.FULL_SETUP,
+      '2': OperationMode.MTLS_ONLY,
+      '3': OperationMode.APPLE_PROFILE_ONLY,
+      '4': OperationMode.PORTAL_ONLY,
+      '5': OperationMode.GITHUB_SSH,
+    };
+    this.config.mode = map[choice] || OperationMode.FULL_SETUP;
   }
 
   /**
-   * Prompts the user for necessary configuration parameters common to all tasks.
+   * Helper to handle file writes with content awareness.
    */
-  private async gatherCommonConfiguration(): Promise<void> {
-    console.log(chalk.blue('--- Phase 1: Configuration ---'));
-
-    const workDirRaw = await question('Enter working directory (default: ./setup): ');
-    this.config.workDir = workDirRaw || './setup';
-
-    const domainRaw = await question('Enter root domain (e.g., my-domain.com): ');
-    if (!domainRaw) {
-      throw new Error('Domain name is required to proceed.');
+  private async safeWrite(filePath: string, content: string): Promise<void> {
+    if (fs.existsSync(filePath)) {
+      const existing = await fs.readFile(filePath, 'utf-8');
+      if (existing.trim().length > 0) {
+        console.log(chalk.yellow(`\n[!] File exists with content: ${filePath}`));
+        const ans = await question('Override (o) or keep & use existing (k)? [o/k]: ');
+        if (ans.toLowerCase() === 'k') return;
+      }
     }
-    this.config.domain = domainRaw;
+    await fs.writeFile(filePath, content);
+    console.log(chalk.green(`[✓] Saved: ${filePath}`));
+  }
 
-    this.config.haSubdomain = await question(`Enter Home Assistant subdomain (default: ha): `) || 'ha';
+  /**
+   * Onboarding process for GitHub SSH setup.
+   */
+  private async onboardGithubUser(): Promise<void> {
+    console.log(chalk.blue('\n--- GitHub SSH Onboarding ---'));
     
-    // Only ask for portal subdomain if we are generating the portal
-    if (this.config.mode === OperationMode.FULL_SETUP || this.config.mode === OperationMode.PORTAL_ONLY) {
-      this.config.portalSubdomain = await question(`Enter Portal subdomain (default: setup): `) || 'setup';
+    // 1. Path selection
+    const defaultSshDir = path.join(os.homedir(), '.ssh');
+    console.log(chalk.gray(`Default SSH directory: ${defaultSshDir}`));
+    const sshDirChoice = await question(`Use default or enter new path: `);
+    const sshDir = sshDirChoice || defaultSshDir;
+
+    // 2. Key name selection
+    const defaultKeyName = 'github-key';
+    const keyName = await question(`Key name (default: ${defaultKeyName}): `) || defaultKeyName;
+    
+    const privateKeyPath = path.join(sshDir, keyName);
+    const publicKeyPath = `${privateKeyPath}.pub`;
+
+    // 3. Email for identifier
+    const defaultEmail = 'naorz@example.com';
+    const email = await question(`Identifier email (default: ${defaultEmail}): `) || defaultEmail;
+
+    // 4. Generate Key Pair
+    if (fs.existsSync(privateKeyPath)) {
+      console.log(chalk.yellow(`\n[!] File exists: ${privateKeyPath}`));
+      const ans = await question('Override existing key (o) or keep/use (k)? [o/k]: ');
+      if (ans.toLowerCase() === 'o') {
+        await $`ssh-keygen -t rsa -b 2048 -f ${privateKeyPath} -C ${email} -N ""`;
+      }
+    } else {
+      await $`ssh-keygen -t rsa -b 2048 -f ${privateKeyPath} -C ${email} -N ""`;
     }
 
-    console.log(chalk.green(`\nConfiguration locked: ${JSON.stringify(this.config, null, 2)}\n`));
+    // 5. Copy to Clipboard
+    if (fs.existsSync(publicKeyPath)) {
+      const pubContent = await fs.readFile(publicKeyPath, 'utf-8');
+      await this.copyToClipboard(pubContent);
+      console.log(chalk.white(`\n1. Go to: ${chalk.bold('https://github.com/settings/keys')}`));
+      console.log(`2. Click 'New SSH Key' and paste the content now in your clipboard.`);
+      await question(chalk.magenta('Press Enter once added to GitHub...'));
+    }
+
+    // 6. Add to Agent
+    console.log(chalk.gray('Adding key to SSH agent...'));
+    if (process.platform === 'darwin') {
+      await $`ssh-add --apple-use-keychain ${privateKeyPath}`;
+    } else {
+      await $`ssh-add ${privateKeyPath}`;
+    }
+
+    // 7. Remote Machine Sync
+    console.log(chalk.blue('\n[Optional] Copy Identity to Remote Machine'));
+    console.log('Aim: Allows password-less login to a remote server (e.g., RPI, Cloud Instance).');
+    const remote = await question('Enter MACHINE_USER_NAME@MACHINE_IP (or leave blank to skip): ');
+    
+    if (remote.trim()) {
+      try {
+        await $`ssh-copy-id -i ${privateKeyPath} ${remote}`;
+      } catch (err) {
+        console.log(chalk.red('Failed to copy key to remote machine. Check IP/Username.'));
+      }
+    } else {
+      console.log(chalk.gray('Skipping remote machine sync.'));
+    }
   }
 
-  /**
-   * Checks if specific files exist in the tunnel_cert directory before proceeding.
-   */
-  private verifyPrerequisites(files: string[]): boolean {
-    const missing: string[] = [];
-    for (const file of files) {
-      const p = path.join(this.config.workDir, 'tunnel_cert', file);
-      if (!fs.existsSync(p)) missing.push(file);
-    }
-
-    if (missing.length > 0) {
-      console.error(chalk.red(`\n[!] Error: Missing prerequisite files in ${path.join(this.config.workDir, 'tunnel_cert')}:`));
-      missing.forEach(f => console.error(chalk.red(`    - ${f}`)));
-      console.error(chalk.yellow(`Please run the 'mTLS Identity Only' step first or place your existing keys in the folder.`));
-      process.exit(1);
-    }
-    return true;
-  }
-
-  /**
-   * Creates the required directory structure on the file system.
-   */
-  private async scaffoldDirectories(): Promise<void> {
-    // Only verify/create logic based on what we actually need might be better, 
-    // but creating the structure is safe and idempotent.
-    const dirs = [
-      path.join(this.config.workDir, 'tunnel_cert'),
-      path.join(this.config.workDir, 'filebrowser', 'cert'),
-      path.join(this.config.workDir, 'filebrowser', 'conf'),
-      path.join(this.config.workDir, 'filebrowser', 'srv'),
-    ];
-
-    for (const dir of dirs) {
-      await $`mkdir -p ${dir}`;
-    }
-  }
-
-  /**
-   * Generates the Private Key and CSR for Cloudflare mTLS.
-   */
   private async generateMtlsCertificates(): Promise<void> {
-    console.log(chalk.blue('\n--- Phase 2: mTLS Identity Generation ---'));
-
+    console.log(chalk.blue('\n--- mTLS Identity ---'));
     const keyPath = path.join(this.config.workDir, 'tunnel_cert', 'client.key');
     const csrPath = path.join(this.config.workDir, 'tunnel_cert', 'client.csr');
-    const commonName = `${this.config.haSubdomain}.${this.config.domain}`;
 
-    console.log(chalk.gray(`Generating RSA 2048 bit key for ${commonName}...`));
-    
-    await $`openssl genrsa -out ${keyPath} 2048`;
-    await $`openssl req -new -key ${keyPath} -out ${csrPath} -subj "/CN=${commonName}"`;
-
-    console.log(chalk.green(`\n[ACTION REQUIRED]`));
-    console.log(`1. Upload this CSR to Cloudflare (Zero Trust > Security > Certificates):`);
-    console.log(chalk.cyan(csrPath));
-    
-    await this.copyFileToClipboard(csrPath);
-
-    console.log(`2. Paste the resulting Certificate into:`);
-    console.log(chalk.bold.yellow(path.join(this.config.workDir, 'tunnel_cert', 'client.pem')));
-
-    await question(chalk.magenta('\nPress Enter once you have saved client.pem to continue...'));
-
-    const pemPath = path.join(this.config.workDir, 'tunnel_cert', 'client.pem');
-    if (!fs.existsSync(pemPath)) {
-      console.log(chalk.red('\n[!] Error: client.pem not found. Script aborted.'));
-      process.exit(1);
+    // Key Generation with check
+    if (fs.existsSync(keyPath)) {
+        console.log(chalk.yellow(`[!] File exists: ${keyPath}`));
+        const ans = await question('Override key (o) or keep (k)? [o/k]: ');
+        if (ans.toLowerCase() === 'o') await $`openssl genrsa -out ${keyPath} 2048`;
+    } else {
+        await $`openssl genrsa -out ${keyPath} 2048`;
     }
+
+    await $`openssl req -new -key ${keyPath} -out ${csrPath} -subj "/CN=${this.config.haSubdomain}.${this.config.domain}"`;
+    
+    const csrContent = await fs.readFile(csrPath, 'utf-8');
+    await this.copyToClipboard(csrContent);
+    
+    console.log(chalk.green('CSR copied. Paste into Cloudflare and save client.pem in tunnel_cert/.'));
+    await question(chalk.magenta('Press Enter once client.pem is saved...'));
   }
 
-  /**
-   * Attempts to copy the content of a file to the system clipboard.
-   */
-  private async copyFileToClipboard(filePath: string): Promise<void> {
-    try {
-      const content = await fs.readFile(filePath, 'utf-8');
-      
-      switch (process.platform) {
-        case 'darwin':
-          await $`echo ${content} | pbcopy`;
-          console.log(chalk.bgGreen.black(' [✓] CSR copied to clipboard! '));
-          break;
-        case 'win32':
-          await $`echo ${content} | clip`;
-          console.log(chalk.bgGreen.black(' [✓] CSR copied to clipboard! '));
-          break;
-        case 'linux':
-          try {
-            await $`echo ${content} | xclip -selection clipboard`;
-            console.log(chalk.bgGreen.black(' [✓] CSR copied to clipboard! '));
-          } catch {
-             console.log(chalk.yellow(' [i] Manual copy required (xclip missing).'));
-          }
-          break;
-        default:
-          console.log(chalk.yellow(' [i] Manual copy required.'));
-      }
-    } catch (error) {
-      console.log(chalk.red(' [!] Failed to access clipboard.'));
-    }
-  }
-
-  /**
-   * Packages the certs into a PKCS#12 bundle and generates the Apple .mobileconfig.
-   */
   private async generateAppleProfile(): Promise<void> {
-    console.log(chalk.blue('\n--- Phase 3: Apple Profile Construction ---'));
-
     const certDir = path.join(this.config.workDir, 'tunnel_cert');
-    const keyPath = path.join(certDir, 'client.key');
-    const pemPath = path.join(certDir, 'client.pem');
     const p12Path = path.join(certDir, 'device-cert.p12');
     const profilePath = path.join(certDir, 'apple-secure.mobileconfig');
 
-    console.log(chalk.yellow('You will now be prompted to set an Export Password for the .p12 file.'));
-    
-    try {
-      await $`openssl pkcs12 -export -out ${p12Path} -inkey ${keyPath} -in ${pemPath}`;
-    } catch (error) {
-      console.error(chalk.red('Failed to generate P12 file. Check OpenSSL/Passwords.'));
-      process.exit(1);
+    if (fs.existsSync(p12Path)) {
+      const ans = await question(chalk.yellow(`device-cert.p12 exists. Override? (y/n): `));
+      if (ans.toLowerCase() === 'y') {
+        await $`openssl pkcs12 -export -out ${p12Path} -inkey ${path.join(certDir, 'client.key')} -in ${path.join(certDir, 'client.pem')} -passout pass:`;
+      }
+    } else {
+      await $`openssl pkcs12 -export -out ${p12Path} -inkey ${path.join(certDir, 'client.key')} -in ${path.join(certDir, 'client.pem')} -passout pass:`;
     }
 
     const b64Data = (await $`cat ${p12Path} | base64`).toString().trim();
-    const displayName = `Home mTLS (${this.config.haSubdomain}.${this.config.domain})`;
     const identifier = `${this.config.domain.split('.').reverse().join('.')}.mtls`;
 
-    const profileXml = this.getAppleProfileTemplate({
-      fileName: `${this.config.haSubdomain}.p12`,
-      base64Data: b64Data,
-      payloadUuid: randomUUID(),
-      profileUuid: randomUUID(),
-      displayName,
-      identifier
-    });
-
-    await fs.writeFile(profilePath, profileXml);
-    console.log(chalk.green(`[+] Profile generated: ${profilePath}`));
-  }
-
-  /**
-   * Helper to return the Apple Configuration Profile XML string.
-   */
-  private getAppleProfileTemplate(params: {
-    fileName: string; base64Data: string; payloadUuid: string;
-    profileUuid: string; displayName: string; identifier: string;
-  }): string {
-    return `<?xml version="1.0" encoding="UTF-8"?>
+    const profileXml = `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
@@ -307,116 +228,69 @@ class SecureAccessGenerator {
     <array>
         <dict>
             <key>PayloadCertificateFileName</key>
-            <string>${params.fileName}</string>
+            <string>${this.config.haSubdomain}.p12</string>
             <key>PayloadContent</key>
-            <data>${params.base64Data}</data>
+            <data>${b64Data}</data>
             <key>PayloadType</key>
             <string>com.apple.certificate.pkcs12</string>
             <key>PayloadUUID</key>
-            <string>${params.payloadUuid}</string>
+            <string>${randomUUID()}</string>
             <key>PayloadVersion</key>
             <integer>1</integer>
         </dict>
     </array>
     <key>PayloadDisplayName</key>
-    <string>${params.displayName}</string>
+    <string>mTLS: ${this.config.haSubdomain}</string>
     <key>PayloadIdentifier</key>
-    <string>${params.identifier}</string>
+    <string>${identifier}</string>
     <key>PayloadType</key>
     <string>Configuration</string>
     <key>PayloadUUID</key>
-    <string>${params.profileUuid}</string>
+    <string>${randomUUID()}</string>
     <key>PayloadVersion</key>
     <integer>1</integer>
 </dict>
 </plist>`;
+
+    await this.safeWrite(profilePath, profileXml);
   }
 
-  /**
-   * Configurations for the FileBrowser secure portal.
-   */
   private async generatePortalConfiguration(): Promise<void> {
-    console.log(chalk.blue('\n--- Phase 4: Secure Portal (FileBrowser) ---'));
-
-    const fbDir = path.join(this.config.workDir, 'filebrowser');
-    const certPath = path.join(fbDir, 'cert', 'fb-cert.pem');
-    const keyPath = path.join(fbDir, 'cert', 'fb-key.pem');
-    const commonName = `${this.config.portalSubdomain}.${this.config.domain}`;
-
-    // 1. Self-Signed Cert
-    console.log(chalk.gray('Generating local SSL certificates for FileBrowser container...'));
-    await $`openssl req -x509 -newkey rsa:4096 -keyout ${keyPath} -out ${certPath} -sha256 -days 365 -nodes -subj "/CN=${commonName}"`;
-
-    // 2. Settings JSON
-    const settings = {
-      port: 443, address: "0.0.0.0", cert: "/certs/fb-cert.pem", key: "/certs/fb-key.pem",
-      log: "stdout", database: "/database/filebrowser.db", root: "/srv",
-      auth: { method: "json" },
-      branding: { name: "Secure Setup Portal", disableExternal: true }
-    };
-    await fs.writeJson(path.join(fbDir, 'conf', 'settings.json'), settings, { spaces: 2 });
-
-    // 3. Docker Compose
-    const dockerCompose = `
-services:
-  filebrowser:
-    image: filebrowser/filebrowser:latest
-    container_name: filebrowser-portal
-    restart: unless-stopped
-    ports: ["8443:443"]
-    volumes:
-      - ../srv:/srv
-      - ./filebrowser.db:/database/filebrowser.db
-      - ./settings.json:/config/settings.json
-      - ../cert/fb-cert.pem:/certs/fb-cert.pem:ro
-      - ../cert/fb-key.pem:/certs/fb-key.pem:ro
-    environment:
-      - PUID=1000
-      - PGID=1000`;
-      
-    await fs.writeFile(path.join(fbDir, 'conf', 'docker-compose.yml'), dockerCompose);
-
-    // 4. Attempt Copy
-    const p12Src = path.join(this.config.workDir, 'tunnel_cert', 'device-cert.p12');
-    const profileSrc = path.join(this.config.workDir, 'tunnel_cert', 'apple-secure.mobileconfig');
-    const srvDest = path.join(fbDir, 'srv');
-
-    if (fs.existsSync(p12Src) && fs.existsSync(profileSrc)) {
-        await $`cp ${p12Src} ${profileSrc} ${srvDest}`;
-        console.log(chalk.gray(`[+] Copied mTLS files to Portal download area.`));
-    } else {
-        console.log(chalk.yellow(`[i] Skipping copy of mTLS files (not found in tunnel_cert). Portal will be empty.`));
-    }
-
-    console.log(chalk.green(`[+] Portal Configuration written to ${fbDir}`));
+    const fbDir = path.join(this.config.workDir, 'filebrowser', 'conf');
+    const composePath = path.join(fbDir, 'docker-compose.yml');
+    const dockerCompose = `services:\n  filebrowser:\n    image: filebrowser/filebrowser:latest\n    ports: ["8443:443"]`;
+    
+    await this.safeWrite(composePath, dockerCompose);
   }
 
-  /**
-   * Prints the final summary.
-   */
-  private printSummary(): void {
-    console.log(chalk.bold.green('\n✅ Operation Complete'));
-    console.log(chalk.white('------------------------------------------------'));
-    
-    if (this.config.mode === OperationMode.FULL_SETUP || this.config.mode === OperationMode.MTLS_ONLY) {
-       console.log(`Key/CSR:       ${path.join(this.config.workDir, 'tunnel_cert')}`);
+  private async copyToClipboard(content: string): Promise<void> {
+    if (process.platform === 'darwin') {
+      await $`echo ${content.trim()} | pbcopy`;
+      console.log(chalk.cyan('[Clipboard] Content copied automatically.'));
+    } else {
+      console.log(chalk.gray('Auto-copy only supported on macOS. Manual copy required.'));
     }
-    
-    if (this.config.mode === OperationMode.FULL_SETUP || this.config.mode === OperationMode.APPLE_PROFILE_ONLY) {
-       console.log(`Apple Profile: ${path.join(this.config.workDir, 'tunnel_cert', 'apple-secure.mobileconfig')}`);
-    }
+  }
 
-    if (this.config.mode === OperationMode.FULL_SETUP || this.config.mode === OperationMode.PORTAL_ONLY) {
-       console.log(`Portal Config: ${path.join(this.config.workDir, 'filebrowser', 'conf')}`);
-    }
-    console.log(chalk.white('------------------------------------------------'));
+  private async gatherCommonConfiguration(): Promise<void> {
+    const defaultWorkDir = path.join(os.homedir(), 'git');
+    console.log(chalk.gray(`Default working directory: ${defaultWorkDir}`));
+    const workDirChoice = await question(`Use default or enter new path: `);
+    this.config.workDir = workDirChoice || defaultWorkDir;
+
+    this.config.domain = await question('Domain (e.g. example.com): ');
+    this.config.haSubdomain = await question('HA Subdomain: ') || 'ha';
+  }
+
+  private async scaffoldDirectories(): Promise<void> {
+    await $`mkdir -p ${path.join(this.config.workDir, 'tunnel_cert')}`;
+    await $`mkdir -p ${path.join(this.config.workDir, 'filebrowser', 'conf')}`;
+    await $`mkdir -p ${path.join(this.config.workDir, 'filebrowser', 'srv')}`;
+  }
+
+  private printSummary(): void {
+    console.log(chalk.bold.green('\n✅ Task Finished.'));
   }
 }
 
-// Execution
-const generator = new SecureAccessGenerator();
-generator.run().catch((err) => {
-  console.error(chalk.bold.red('\n[FATAL] Execution failed:'));
-  console.error(err);
-  process.exit(1);
-});
+new SecureAccessGenerator().run().catch(console.error);

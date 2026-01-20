@@ -1,17 +1,35 @@
 {
-  "name": "generator-profile",
+  "name": "hass-sag",
   "version": "1.0.0",
-  "description": "",
+  "description": "Home Assistant Secure Access Generator - mTLS & GitHub Onboarding",
   "main": "generator.ts",
-  "scripts": {
-    "start": "npx zx generator.ts",
-    "test": "echo \"Error: no test specified\" && exit 1"
+  "bin": {
+    "generator": "generator.ts",
+    "hass-sag": "generator.ts"
   },
-  "keywords": [],
-  "author": "",
   "type": "module",
-  "devDependencies": {
-    "@types/node": "^25.0.9",
-    "zx": "^8.8.5"
+  "scripts": {
+    "start": "zx generator.ts"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/naorz/hass-sag.git"
+  },
+  "keywords": [
+    "mtls",
+    "cloudflare",
+    "home-assistant",
+    "ssh",
+    "github",
+    "automation"
+  ],
+  "author": "NaorZ",
+  "license": "MIT",
+  "dependencies": {
+    "zx": "^8.0.0",
+    "@types/node": "^25.0.9"
+  },
+  "engines": {
+    "node": ">=22.0.0"
   }
 }
