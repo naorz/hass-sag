@@ -3,6 +3,12 @@
 
 A unified CLI for onboarding machines to GitHub via SSH and generating Cloudflare mTLS infrastructure for Home Assistant. Built with TypeScript and `zx`.
 
+![explain how it works](./docs/explain.png)
+
+---
+## Table of content
+> TODO
+
 ---
 
 ## 🚀 One-Line Execution
@@ -45,7 +51,7 @@ If you prefer to keep a local copy for development:
 
 1. **Clone the repo**:
 ```bash
-git clone [https://github.com/naorz/hass-sag.git](https://github.com/naorz/hass-sag.git)
+git clone https://github.com/naorz/hass-sag.git
 cd hass-sag
 
 ```
