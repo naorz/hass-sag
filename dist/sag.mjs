@@ -22726,11 +22726,44 @@ const mtlsTopic = {
 const registerMtlsMenu = (menu, config) => {
   menu.addOption(mtlsTopic.name, mtlsTopic.id, () => mtlsTopic.run(config));
 };
-const dockerComposeTemplate = () => {
+const dockerComposeTemplate = (srvPath, certPath) => {
   return `services:
   filebrowser:
     image: filebrowser/filebrowser:latest
-    ports: ["8443:443"]`;
+    container_name: filebrowser
+    restart: unless-stopped
+    volumes:
+      - ${srvPath}:/srv
+      - ./filebrowser.db:/database/filebrowser.db
+      - ./settings.json:/config/settings.json
+      - ${certPath}:/certs:ro
+    environment:
+      - PUID=1000
+      - PGID=1000
+    ports:
+      - "8443:443"`;
+};
+const settingsJsonTemplate = (certFile = "fb-cert.pem", keyFile = "fb-key.pem") => {
+  return JSON.stringify(
+    {
+      port: 443,
+      address: "0.0.0.0",
+      cert: `/certs/${certFile}`,
+      key: `/certs/${keyFile}`,
+      log: "stdout",
+      database: "/database/filebrowser.db",
+      root: "/srv",
+      auth: {
+        method: "json"
+      },
+      branding: {
+        name: "Secure Setup Portal",
+        disableExternal: true
+      }
+    },
+    null,
+    2
+  );
 };
 class PortalGenerator {
   async run(config) {
@@ -22740,8 +22773,13 @@ class PortalGenerator {
     await fileSystem.ensureDir(fbDir);
     await fileSystem.ensureDir(srvDir);
     const composePath = join(fbDir, "docker-compose.yml");
-    const dockerCompose = dockerComposeTemplate();
+    const settingsPath = join(fbDir, "settings.json");
+    const certDir = join(config.workDir, "tunnel_cert");
+    const dockerCompose = dockerComposeTemplate(srvDir, certDir);
+    const settingsJson = settingsJsonTemplate();
     await fileSystem.safeWrite(composePath, dockerCompose);
+    await fileSystem.safeWrite(settingsPath, settingsJson);
+    cli.printSuccess("Portal configuration files generated in filebrowser/conf/");
   }
 }
 const portalTopic = {
