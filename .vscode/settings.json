@@ -1,0 +1,9 @@
+{
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": "explicit"
+  },
+  "eslint.validate": ["typescript", "javascript"],
+  "editor.formatOnSave": true,
+  "prettier.enable": true,
+  "shellcheck.executablePath": "/opt/homebrew/bin/shellcheck"
+}
