@@ -1,7 +1,24 @@
 # HASS-SAG 🛡️
 **Home Assistant Secure Access Generator**
 
-A unified CLI for onboarding machines to GitHub via SSH and generating Cloudflare mTLS infrastructure for Home Assistant. Built with TypeScript and `zx`.
+Accessing your Home Assistant (or any home server) from the outside can be difficult. Traditional methods like port forwarding or VPNs are either insecure or annoying to use daily.
+
+Cloudflare offers great protection, but its "security challenges" (like "Prove you are human") often break apps like Home Assistant that need constant connections (WebSockets).
+
+### 🔐 The Solution: mTLS
+This tool helps you set up **mTLS**. It gives your phone and laptop a "digital key" (certificate) that identifies you instantly.
+
+*   **No more challenges:** Cloudflare recognizes your device and lets you right in—no more breaking WebSockets.
+*   **Invisible Security:** Your server stays hidden from the public internet. Only your approved devices can even see the login page.
+*   **Simple Onboarding:** Easily share these keys with family and install them on iPhones, Macs, or Android.
+
+### 🛠️ High-Level Process
+1. **Cloudflare Setup**: Connect your domain to Cloudflare Zero Trust.
+2. **Generate Keys**: Use this script to create your digital certificates.
+3. **Lock it Down**: Tell Cloudflare to only allow your specific keys.
+4. **Deploy**: Share certificates with your devices and enjoy secure, seamless access.
+
+> **Note:** This tool automates the tedious manual steps of generating keys, building Apple profiles, and setting up distribution portals.
 
 ![explain how it works](./docs/explain.png)
 
@@ -34,14 +51,6 @@ npx zx https://raw.githubusercontent.com/naorz/hass-sag/main/generator.ts
 | **Secure Portal** | Generates a FileBrowser Docker stack for cert distribution. |
 | **GitHub SSH** | Automates SSH keygen, agent/keychain addition, and clipboard copy. |
 
----
-
-## 🛡️ Security & Standards
-
-* **Google TS Style**: Logic follows the Google TypeScript Style Guide for readability and maintenance.
-* **Reverse DNS**: Identifiers are generated using Reverse DNS notation (e.g., `xyz.my-domain.mtls`) for Apple Profile compliance.
-* **Fail-Safe Overwrites**: The script checks for existing file content and prompts for confirmation before every write.
-* **Passphrase-less**: Optimized for developer velocity while maintaining secure local agent integration.
 
 ---
 
@@ -50,25 +59,19 @@ npx zx https://raw.githubusercontent.com/naorz/hass-sag/main/generator.ts
 If you prefer to keep a local copy for development:
 
 1. **Clone the repo**:
-```bash
-git clone https://github.com/naorz/hass-sag.git
-cd hass-sag
-
-```
-
+   ```bash
+   git clone https://github.com/naorz/hass-sag.git && cd hass-sag
+   ```
 
 2. **Install dependencies**:
-```bash
-npm install
-
-```
-
+   ```bash
+   npm install
+   ```
 
 3. **Run via NPM**:
-```bash
-npm start
-
-```
+   ```bash
+   npm start
+   ```
 
 
 
