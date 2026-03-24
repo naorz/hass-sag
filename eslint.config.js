@@ -15,7 +15,11 @@ export default tseslint.config(
         ...globals.node,
       },
       parserOptions: {
-        project: ['./packages/cli/tsconfig.json', './packages/shared/tsconfig.json'],
+        project: [
+          './packages/cli/tsconfig.json',
+          './packages/shared/tsconfig.json',
+          './packages/frontend/tsconfig.json',
+        ],
       },
     },
     plugins: {

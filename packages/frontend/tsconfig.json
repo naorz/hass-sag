@@ -1,0 +1,19 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "lib": ["ESNext", "DOM", "DOM.Iterable"],
+    "baseUrl": ".",
+    "composite": true,
+    "paths": {
+      "@sag/shared/core": ["../shared/src/core"],
+      "@sag/shared/schemas": ["../shared/src/schemas"],
+      "@/*": ["src/*"]
+    }
+  },
+  "references": [
+    { "path": "../shared" }
+  ],
+  "include": ["src/**/*", "vite.config.ts", "vitest.config.ts"],
+  "exclude": ["node_modules", "dist"]
+}

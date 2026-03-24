@@ -8,7 +8,7 @@
   "scripts": {
     "dev": "bun --cwd packages/cli run dev",
     "build": "bun run --cwd packages/cli build",
-    "test": "bun run --cwd packages/shared test && bun run --cwd packages/cli test",
+    "test": "bun run --cwd packages/shared test && bun run --cwd packages/cli test && bun run --cwd packages/frontend test",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "release": "standard-version",
