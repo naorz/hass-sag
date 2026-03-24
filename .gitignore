@@ -1,3 +1,21 @@
 .DS_Store
 setup
 node_modules
+dist/
+.sag-config.json
+.env
+
+# Generated output
+sag-output/
+tunnel_cert/
+filebrowser/
+
+# Certificates & keys
+*.pem
+*.p12
+*.key
+*.csr
+*.mobileconfig
+
+# Personal notes
+photos.md
