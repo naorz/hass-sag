@@ -1,88 +1,67 @@
-# HASS-SAG 🛡️
+# HASS-SAG
+
 **Home Assistant Secure Access Generator**
 
-Accessing your Home Assistant (or any home server) from the outside can be difficult. Traditional methods like port forwarding or VPNs are either insecure or annoying to use daily.
+A CLI tool that sets up Cloudflare mTLS to make your home services invisible to the public internet. Devices with your certificate get seamless access — no challenges, no popups. Devices without it don't even see a login page.
 
-Cloudflare offers great protection, but its "security challenges" (like "Prove you are human") often break apps like Home Assistant that need constant connections (WebSockets).
+![How it works](./docs/explain.png)
 
-### 🔐 The Solution: mTLS
-This tool helps you set up **mTLS**. It gives your phone and laptop a "digital key" (certificate) that identifies you instantly.
-
-*   **No more challenges:** Cloudflare recognizes your device and lets you right in—no more breaking WebSockets.
-*   **Invisible Security:** Your server stays hidden from the public internet. Only your approved devices can even see the login page.
-*   **Simple Onboarding:** Easily share these keys with family and install them on iPhones, Macs, or Android.
-
-### 🛠️ High-Level Process
-1. **Cloudflare Setup**: Connect your domain to Cloudflare Zero Trust.
-2. **Generate Keys**: Use this script to create your digital certificates.
-3. **Lock it Down**: Tell Cloudflare to only allow your specific keys.
-4. **Deploy**: Share certificates with your devices and enjoy secure, seamless access.
-
-> **Note:** This tool automates the tedious manual steps of generating keys, building Apple profiles, and setting up distribution portals.
-
-![explain how it works](./docs/explain.png)
-
----
-## Table of content
-> TODO
-
----
-
-## 🚀 One-Line Execution
-
-You can run this tool instantly without cloning the repository or installing packages globally:
+## Quick Start
 
 ```bash
-npx zx https://raw.githubusercontent.com/naorz/hass-sag/main/generator.ts
-
+bunx hass-sag
 ```
 
-*Prerequisites: [Node.js](https://nodejs.org/) (v22+) and [OpenSSL](https://www.openssl.org/).*
+Prerequisites: [Bun](https://bun.sh/) (or Node.js v22+) and [OpenSSL](https://www.openssl.org/).
 
----
+## Features
 
-## 🛠️ Operation Modes
+- **mTLS Certificate Management** — generate keys, CSR, PKCS#12 bundles, Apple profiles
+- **Cross-Platform Installation** — auto-install certs on macOS, Windows, Linux (iOS/Android guided)
+- **Cloudflare API Automation** — upload certs, manage WAF rules, verify HASS settings
+- **WAF Rule Management** — create/optimize rules within the 5-rule free tier limit
+- **Certificate Rotation** — zero-downtime renewal with automatic old cert revocation
+- **Family Distribution** — download portal with per-platform instructions behind CF Access OTP
+- **HASS Verification** — check WebSocket, HTTP/2, SSL, TLS settings with auto-fix
 
-| Mode | Description |
-| --- | --- |
-| **Full Setup** | Orchestrates mTLS keys, Apple Profile, and Secure Portal. |
-| **mTLS Identity** | Generates RSA-2048 Private Key and CSR for Cloudflare. |
-| **Apple Profile** | Compiles existing certs into a `.mobileconfig` for iOS/macOS. |
-| **Secure Portal** | Generates a FileBrowser Docker stack for cert distribution. |
-| **GitHub SSH** | Automates SSH keygen, agent/keychain addition, and clipboard copy. |
+## Supported Platforms
 
+| Platform | Cert Install | Auto-Selection | How |
+|:---------|:-------------|:---------------|:----|
+| macOS | Yes | Zero popup | `security set-identity-preference` |
+| iOS/iPadOS | Yes | Zero popup | `.mobileconfig` identity preference |
+| Windows | Yes | First-visit popup | Browser remembers choice |
+| Linux | Yes | Zero popup | Chrome `AutoSelectCertificateForUrls` policy |
+| Android | Yes | First-visit popup | Browser remembers choice |
 
----
+## Roadmap
 
-## 📦 Manual Installation
+- [Web Companion App](./docs/roadmap/spa-web-companion.md)
+- [Windows Chrome Auto-Selection](./docs/roadmap/windows-auto-select.md)
 
-If you prefer to keep a local copy for development:
+## Documentation
 
-1. **Clone the repo**:
-   ```bash
-   git clone https://github.com/naorz/hass-sag.git && cd hass-sag
-   ```
+Full documentation: **[docs/index.md](./docs/index.md)**
 
-2. **Install dependencies**:
-   ```bash
-   npm install
-   ```
+| Guide | |
+|:------|:--|
+| [Getting Started](./docs/getting-started.md) | Prerequisites, installation, first run |
+| [Cloudflare Setup](./docs/cloudflare-setup.md) | One-time CF dashboard configuration |
+| [Troubleshooting](./docs/troubleshooting.md) | Common issues and solutions |
 
-3. **Run via NPM**:
-   ```bash
-   npm start
-   ```
+## Development
 
+```bash
+git clone https://github.com/naorz/hass-sag.git && cd hass-sag
+bun install
+bun run dev
+```
 
+## Links
 
----
+- [Cloudflare Zero Trust Dashboard](https://one.dash.cloudflare.com/)
+- [Cloudflare mTLS Documentation](https://developers.cloudflare.com/cloudflare-one/identity/devices/mutual-tls-authentication/)
 
-## 🔗 Useful Links
+## License
 
-* [GitHub SSH Keys Settings](https://github.com/settings/keys)
-* [Cloudflare Zero Trust Dashboard](https://one.dash.cloudflare.com/)
-* [ZX Documentation](https://google.github.io/zx/)
-
----
-
-**License:** MIT
+MIT

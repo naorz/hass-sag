@@ -1,9 +1,9 @@
 ## 📋 Prerequisites
 
-* A registered domain on **Cloudflare**.
-* **Home Assistant** running (Docker or OS).
-* An active **Cloudflare Tunnel** (cloudflared) connecting your instance to the web.
-* **Node.js** installed on your local machine (to run the script).
+- A registered domain on **Cloudflare**.
+- **Home Assistant** running (Docker or OS).
+- An active **Cloudflare Tunnel** (cloudflared) connecting your instance to the web.
+- **Node.js** installed on your local machine (to run the script).
 
 ---
 
@@ -20,11 +20,11 @@ npx zx https://raw.githubusercontent.com/naorz/hass-sag/main/generator.ts
 1. **Select Full Setup**: This handles everything from mTLS to the Portal.
 2. **Configuration**: Provide your domain (e.g., `example.com`) and subdomains.
 3. **mTLS Phase**:
-* The script generates a CSR and copies it to your clipboard.
-* Navigate to **Cloudflare Zero Trust > Security > Certificates > Client Certificates**.
-* Click **Create Certificate**, choose **Use my own CSR**, and paste.
-* Save the resulting certificate as `client.pem` in the `tunnel_cert` folder created by the script.
 
+- The script generates a CSR and copies it to your clipboard.
+- Navigate to **Cloudflare Zero Trust > Security > Certificates > Client Certificates**.
+- Click **Create Certificate**, choose **Use my own CSR**, and paste.
+- Save the resulting certificate as `client.pem` in the `tunnel_cert` folder created by the script.
 
 4. **Apple Profile**: The script packages your certs into a `.mobileconfig` file automatically.
 5. **Portal**: A Docker Compose folder is generated. Run `docker compose up -d` to host your certificates on a secure download page.
@@ -64,16 +64,15 @@ openssl pkcs12 -export -out device-cert.p12 -inkey client.key -in client.pem
 
 1. **Upload Root CA**: Go to **Certificates** and ensure the Cloudflare Managed CA is active.
 2. **Create Access Application**:
-* Go to **Access > Applications**.
-* Select your Home Assistant domain.
 
+- Go to **Access > Applications**.
+- Select your Home Assistant domain.
 
 3. **Add mTLS Policy**:
-* Create a policy named "Enforce mTLS".
-* **Action**: Service Auth.
-* **Include**: Selector "Valid Client Certificate".
 
-
+- Create a policy named "Enforce mTLS".
+- **Action**: Service Auth.
+- **Include**: Selector "Valid Client Certificate".
 
 ---
 
