@@ -1,4 +1,4 @@
-import { cli, ssl } from '@sag/utils'
+import { cli, ssl, validateHttpsUrl } from '@sag/utils'
 import { $, fs } from 'zx'
 import { join as pathJoin } from 'node:path'
 import { type ICertificateManager, type IWafRuleManager } from '@sag/core'
@@ -154,6 +154,13 @@ export class StatusGenerator {
 
     const defaultUrl = `https://${config.haSubdomain ? `${config.haSubdomain}.` : ''}${config.domain}`
     const targetUrl = await cli.ask('URL to test', defaultUrl)
+
+    try {
+      validateHttpsUrl(targetUrl)
+    } catch (err) {
+      cli.printError(`Invalid URL: ${err instanceof Error ? err.message : String(err)}`)
+      return
+    }
 
     // Test 1: WITH mTLS certificate — should return 200
     cli.printInfo(`\n1. Testing WITH client certificate (should return 200)...`)

@@ -3,6 +3,23 @@ export function isValidCfId(value: string): boolean {
   return /^[0-9a-f]{32}$/i.test(value)
 }
 
+/**
+ * Validates that a URL is a well-formed https:// URL.
+ * Throws if the URL is invalid or not HTTPS.
+ * Call this before passing user-supplied URLs to shell commands.
+ */
+export function validateHttpsUrl(url: string): void {
+  let parsed: URL
+  try {
+    parsed = new URL(url)
+  } catch {
+    throw new Error(`Invalid URL: "${url}"`)
+  }
+  if (parsed.protocol !== 'https:') {
+    throw new Error(`URL must use https:// — got "${parsed.protocol}//"`)
+  }
+}
+
 export const network = {
   /**
    * Cleans a domain string by removing protocol (http/https),

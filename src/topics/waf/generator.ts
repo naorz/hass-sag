@@ -357,23 +357,25 @@ export class WafGenerator {
   }
 
   private async combineRules(rules: WafRule[], action: string): Promise<void> {
-    // Extract hostname expressions and combine with "or"
-    const expressions = rules.map((r) => r.expression)
+    // Wrap each expression in parens to preserve operator precedence when joining with 'or'
+    const expressions = rules.map((r) =>
+      r.expression.startsWith('(') ? r.expression : `(${r.expression})`,
+    )
     const combinedExpression = expressions.join(' or ')
     const combinedDescription = `Combined ${action} rule (${rules.length} merged)`
 
-    // Delete old rules
-    for (const rule of rules) {
-      await this.wafManager.deleteRule(rule.id)
-    }
-
-    // Create combined rule
+    // Create combined rule FIRST — if this fails, original rules are left intact
     await this.wafManager.createRule({
       description: combinedDescription,
       expression: combinedExpression,
       action,
       enabled: true,
     })
+
+    // Only delete old rules after the combined rule is confirmed created
+    for (const rule of rules) {
+      await this.wafManager.deleteRule(rule.id)
+    }
 
     cli.printSuccess(`Combined ${rules.length} ${action} rules into 1.`)
   }

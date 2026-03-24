@@ -7,6 +7,14 @@ export const ssl = {
   },
 
   async generateCsr(keyPath: string, outputPath: string, commonName: string): Promise<void> {
+    // Reject characters that would corrupt or inject extra fields into the -subj string.
+    // A '/' would start a new RDN (e.g. /O=Evil), '=' would add a new attribute, null bytes
+    // would truncate the string at the C layer.
+    if (/[/=]/.test(commonName) || commonName.includes('\x00')) {
+      throw new Error(
+        `Invalid commonName "${commonName}": must not contain '/', '=', or null bytes`,
+      )
+    }
     await $`openssl req -new -key ${keyPath} -out ${outputPath} -subj "/CN=${commonName}"`
   },
 

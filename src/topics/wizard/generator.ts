@@ -206,14 +206,9 @@ export class WizardGenerator {
     // Set hostname association
     cli.printInfo(`Setting hostname association for ${hostname}...`)
     try {
-      const existing =
-        (await (
-          this.certManager as { getHostnameAssociations?(): Promise<string[]> }
-        ).getHostnameAssociations?.()) ?? []
+      const existing = await this.certManager.getHostnameAssociations()
       if (!existing.includes(hostname)) {
-        await (
-          this.certManager as { setHostnameAssociations?(h: string[]): Promise<void> }
-        ).setHostnameAssociations?.([...existing, hostname])
+        await this.certManager.setHostnameAssociations([...existing, hostname])
         cli.printSuccess(`Hostname "${hostname}" added to mTLS hosts.`)
       } else {
         cli.printInfo(`Hostname "${hostname}" is already in mTLS hosts.`)

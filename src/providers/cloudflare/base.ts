@@ -32,4 +32,11 @@ export const cfApi = {
   isConfigured(): boolean {
     return !!(cfClient && zoneId)
   },
+
+  /** Reset all state — intended for use in tests to prevent state bleed between test cases. */
+  reset(): void {
+    cfClient = undefined
+    zoneId = undefined
+    accountId = undefined
+  },
 }

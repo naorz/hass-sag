@@ -1,10 +1,14 @@
-import { type IZoneSettingsManager, type IWafRuleManager, type HealthCheckResult } from '@sag/core'
+import {
+  type IZoneSettingsManager,
+  type IWafRuleManager,
+  type ICertificateManager,
+  type HealthCheckResult,
+} from '@sag/core'
 import { type GeneratorConfig } from '@sag/types'
-import { type CfCertificateManager } from '@sag/providers'
 
 export interface CheckContext {
   settings: IZoneSettingsManager
-  certificates: CfCertificateManager
+  certificates: ICertificateManager
   wafManager: IWafRuleManager
   config: GeneratorConfig
 }

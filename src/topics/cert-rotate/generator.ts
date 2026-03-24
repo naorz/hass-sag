@@ -1,4 +1,4 @@
-import { cli, ssl, fileSystem } from '@sag/utils'
+import { cli, ssl, fileSystem, validateHttpsUrl } from '@sag/utils'
 import { $, fs } from 'zx'
 import { join as pathJoin } from 'node:path'
 import { type ICertificateManager } from '@sag/core'
@@ -54,6 +54,15 @@ export class CertRotateGenerator {
     // Step 5: Verify — test with AND without mTLS cert
     cli.printInfo('\nVerifying new certificate...')
     const testUrl = `https://${commonName}`
+
+    try {
+      validateHttpsUrl(testUrl)
+    } catch {
+      cli.printWarning(
+        `Skipping connectivity test — invalid URL derived from commonName: ${testUrl}`,
+      )
+      return
+    }
 
     cli.printInfo(`\n  Test 1: WITH new cert (expect 200)...`)
     let mtlsOk = false
@@ -142,22 +151,29 @@ export class CertRotateGenerator {
   }
 
   async batchRotate(config: GeneratorConfig): Promise<void> {
-    cli.printSection('Batch Certificate Rotation')
+    cli.printSection('Certificate Rotation Overview')
 
     const certs = await this.certManager.listCertificates()
     const activeCerts = certs.filter((c) => c.status === 'active')
 
     if (activeCerts.length === 0) {
-      cli.printInfo('No active certificates to rotate.')
+      cli.printInfo('No active certificates found in Cloudflare.')
       return
     }
 
-    cli.printInfo(`Found ${activeCerts.length} active certificate(s):`)
+    cli.printInfo(`Active Cloudflare client certificates (${activeCerts.length}):`)
     for (const cert of activeCerts) {
       console.log(`  - ${cert.common_name} (expires: ${cert.expires_on})`)
     }
 
-    const proceed = await cli.confirm('Rotate all active certificates?')
+    cli.printInfo(
+      '\nNote: This will generate a new key + CSR for your local device certificate and upload it to Cloudflare.',
+    )
+    cli.printInfo(
+      'For family member certificates, run "Generate Certificate" from each member\'s device.',
+    )
+
+    const proceed = await cli.confirm('Rotate your local device certificate?')
     if (!proceed) return
 
     await this.rotate(config)

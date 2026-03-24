@@ -4,13 +4,11 @@ import { CloudflareApiError } from '@sag/core'
 
 describe('cfApi', () => {
   beforeEach(() => {
-    // Reset by re-configuring with known values
-    // Note: cfApi has no public reset, so we just test configure → get flow
+    cfApi.reset()
   })
 
   it('isConfigured() returns false before configure()', () => {
-    // We can't fully reset module state, but we can test the API contract
-    expect(typeof cfApi.isConfigured()).toBe('boolean')
+    expect(cfApi.isConfigured()).toBe(false)
   })
 
   it('configure() makes isConfigured() return true', () => {

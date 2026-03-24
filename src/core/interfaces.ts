@@ -12,6 +12,8 @@ export interface ICertificateManager {
   listCertificates(): Promise<CertificateInfo[]>
   getCertificate(id: string): Promise<CertificateInfo>
   revokeCertificate(id: string): Promise<void>
+  getHostnameAssociations(): Promise<string[]>
+  setHostnameAssociations(hostnames: string[]): Promise<void>
 }
 
 export interface IWafRuleManager {

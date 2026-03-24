@@ -121,7 +121,9 @@ async function resolveSecret(opts: {
     cli.printInfo(`[CF] ${opts.label} not provided — skipping.`)
     return undefined
   }
-  const trimmed = value.trim()
+  // Strip newlines to prevent injection of extra keys into the .env file
+  // (terminal paste events can embed newline characters in the pasted text)
+  const trimmed = value.trim().replace(/[\r\n]/g, '')
 
   // 4. Offer to persist
   const save = await cli.confirm(

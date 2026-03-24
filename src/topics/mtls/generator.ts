@@ -1,4 +1,4 @@
-import { cli, clipboard, ssl, fileSystem } from '@sag/utils'
+import { cli, clipboard, ssl, fileSystem, validateHttpsUrl } from '@sag/utils'
 import { fs, $ } from 'zx'
 import { join as pathJoin } from 'node:path'
 import { randomUUID } from 'node:crypto'
@@ -303,6 +303,13 @@ export class MtlsGenerator {
 
     const defaultUrl = `https://${config.haSubdomain ? `${config.haSubdomain}.` : ''}${config.domain}`
     const targetUrl = await cli.ask('Enter URL to test', defaultUrl)
+
+    try {
+      validateHttpsUrl(targetUrl)
+    } catch (err) {
+      cli.printError(`Invalid URL: ${err instanceof Error ? err.message : String(err)}`)
+      return
+    }
 
     cli.printInfo(`Running curl against ${targetUrl}...`)
     console.log('') // Spacer

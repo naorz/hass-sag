@@ -1,13 +1,17 @@
 import { cli } from '@sag/utils'
-import { type IZoneSettingsManager, type IWafRuleManager, type HealthCheckResult } from '@sag/core'
-import { type CfCertificateManager } from '@sag/providers'
+import {
+  type IZoneSettingsManager,
+  type IWafRuleManager,
+  type ICertificateManager,
+  type HealthCheckResult,
+} from '@sag/core'
 import { type GeneratorConfig } from '@sag/types'
 import { ALL_CHECKS, type CheckContext } from './checks'
 
 export class HassVerifyGenerator {
   constructor(
     private settings: IZoneSettingsManager,
-    private certificates: CfCertificateManager,
+    private certificates: ICertificateManager,
     private wafManager: IWafRuleManager,
   ) {}
 
