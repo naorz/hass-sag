@@ -23,7 +23,9 @@ export default tseslint.config(
       import: importPlugin,
     },
     rules: {
-      'prettier/prettier': 'error',
+      'prettier/prettier': ['error', { semi: false }],
+      semi: ['error', 'never'],
+      '@typescript-eslint/semi': ['error', 'never'],
       'no-console': 'off',
       // Named exports only
       'import/no-default-export': 'error',
