@@ -1,21 +1,21 @@
-import { fs } from 'zx';
-import { cli } from '@sag/utils/cli';
+import { fs } from 'zx'
+import { cli } from './cli'
 
 export const fileSystem = {
   async safeWrite(filePath: string, content: string): Promise<void> {
     if (fs.existsSync(filePath)) {
-      const existing = await fs.readFile(filePath, 'utf-8');
+      const existing = await fs.readFile(filePath, 'utf-8')
       if (existing.trim().length > 0) {
-        cli.printWarning(`File exists with content: ${filePath}`);
-        const ans = await cli.ask('Override (o) or keep & use existing (k)? [o/k]', 'k');
-        if (ans.toLowerCase() === 'k') return;
+        cli.printWarning(`File exists with content: ${filePath}`)
+        const override = await cli.confirm('Override existing file?')
+        if (!override) return
       }
     }
-    await fs.writeFile(filePath, content);
-    cli.printSuccess(`Saved: ${filePath}`);
+    await fs.writeFile(filePath, content)
+    cli.printSuccess(`Saved: ${filePath}`)
   },
 
   async ensureDir(dirPath: string): Promise<void> {
-    await fs.mkdirp(dirPath);
+    await fs.mkdirp(dirPath)
   },
-};
+}

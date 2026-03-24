@@ -13,8 +13,8 @@ export const dockerComposeTemplate = (srvPath: string, certPath: string) => {
       - PUID=1000
       - PGID=1000
     ports:
-      - "8443:443"`;
-};
+      - "8443:443"`
+}
 
 export const settingsJsonTemplate = (certFile = 'fb-cert.pem', keyFile = 'fb-key.pem') => {
   return JSON.stringify(
@@ -36,5 +36,5 @@ export const settingsJsonTemplate = (certFile = 'fb-cert.pem', keyFile = 'fb-key
     },
     null,
     2,
-  );
-};
+  )
+}
