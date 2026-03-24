@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cloudflare API CORS Feasibility Test</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, sans-serif; background: #0f172a; color: #e2e8f0; padding: 2rem; }
+    h1 { font-size: 1.5rem; margin-bottom: 0.5rem; color: #f8fafc; }
+    p.subtitle { color: #94a3b8; margin-bottom: 2rem; font-size: 0.9rem; }
+    .inputs { display: grid; gap: 0.75rem; max-width: 600px; margin-bottom: 1.5rem; }
+    label { font-size: 0.8rem; color: #94a3b8; display: block; margin-bottom: 0.25rem; }
+    input {
+      width: 100%; padding: 0.5rem 0.75rem;
+      background: #1e293b; border: 1px solid #334155;
+      color: #f1f5f9; border-radius: 6px; font-size: 0.9rem;
+    }
+    input:focus { outline: none; border-color: #3b82f6; }
+    button {
+      padding: 0.6rem 1.5rem; background: #3b82f6; color: white;
+      border: none; border-radius: 6px; cursor: pointer; font-size: 0.9rem;
+    }
+    button:hover { background: #2563eb; }
+    button:disabled { background: #334155; cursor: not-allowed; color: #64748b; }
+    #results { margin-top: 2rem; display: grid; gap: 0.5rem; }
+    .result {
+      display: grid; grid-template-columns: 1fr auto;
+      align-items: start; gap: 1rem;
+      padding: 0.75rem 1rem; border-radius: 8px;
+      background: #1e293b; border: 1px solid #334155;
+    }
+    .result-name { font-size: 0.85rem; font-weight: 600; margin-bottom: 0.2rem; }
+    .result-endpoint { font-size: 0.75rem; color: #64748b; font-family: monospace; margin-bottom: 0.3rem; }
+    .result-detail { font-size: 0.8rem; color: #94a3b8; }
+    .badge {
+      padding: 0.2rem 0.6rem; border-radius: 4px;
+      font-size: 0.75rem; font-weight: 700; white-space: nowrap; align-self: start;
+    }
+    .badge-pass    { background: #14532d; color: #86efac; }
+    .badge-fail    { background: #7f1d1d; color: #fca5a5; }
+    .badge-cors    { background: #713f12; color: #fde68a; }
+    .badge-pending { background: #1e3a5f; color: #93c5fd; }
+    .badge-running { background: #312e81; color: #c4b5fd; }
+    .summary {
+      margin-top: 1.5rem; padding: 1rem; border-radius: 8px;
+      background: #1e293b; border: 1px solid #334155; font-size: 0.9rem;
+    }
+    .summary h2 { font-size: 1rem; margin-bottom: 0.5rem; }
+    .summary pre { font-size: 0.8rem; color: #94a3b8; white-space: pre-wrap; word-break: break-all; }
+    .note { margin-top: 1rem; padding: 0.75rem 1rem; background: #1c2b1a; border: 1px solid #365314; border-radius: 6px; font-size: 0.8rem; color: #86efac; }
+    .warn { background: #2d1e00; border-color: #854d0e; color: #fde68a; }
+  </style>
+</head>
+<body>
+  <h1>Cloudflare API — CORS Feasibility Test</h1>
+  <p class="subtitle">Tests whether CF API endpoints are accessible from a browser (GitHub Pages). All requests are made directly to <code>api.cloudflare.com</code> — no proxy involved.</p>
+
+  <div class="note warn">
+    ⚠ Open this page from <strong>https://</strong> (GitHub Pages or <code>npx serve .</code>) for accurate CORS results.
+    A <code>file://</code> origin may be blocked by browsers regardless of the server's CORS headers.
+  </div>
+
+  <div class="inputs" style="margin-top:1.5rem">
+    <div>
+      <label>CF API Token (Zone:Read + Zone:SSL/TLS:Edit + Zone:Firewall:Edit + Account:Access:Read)</label>
+      <input type="password" id="token" placeholder="Paste your token…" />
+    </div>
+    <div>
+      <label>Zone ID (32-char hex)</label>
+      <input type="text" id="zoneId" placeholder="abcdef0123456789abcdef0123456789" maxlength="32" />
+    </div>
+    <div>
+      <label>Account ID (optional — needed for CF Access endpoint test)</label>
+      <input type="text" id="accountId" placeholder="abcdef0123456789abcdef0123456789" maxlength="32" />
+    </div>
+    <div>
+      <button id="runBtn" onclick="runTests()">Run Tests</button>
+    </div>
+  </div>
+
+  <div id="results"></div>
+  <div id="summary" style="display:none" class="summary">
+    <h2>Verdict</h2>
+    <pre id="summaryText"></pre>
+  </div>
+
+  <script>
+    const BASE = 'https://api.cloudflare.com/client/v4'
+
+    function getInputs() {
+      return {
+        token:     document.getElementById('token').value.trim(),
+        zoneId:    document.getElementById('zoneId').value.trim(),
+        accountId: document.getElementById('accountId').value.trim(),
+      }
+    }
+
+    function headers(token) {
+      return { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
+    }
+
+    // ---- Test definitions ----
+    // Each test returns { ok, status, detail }
+    function makeTests({ token, zoneId, accountId }) {
+      const z = zoneId
+      const a = accountId
+
+      // Minimal valid CSR for upload test (self-signed, won't be committed)
+      // We just need to see if the request is allowed — a real CSR would be needed for success
+      const testCsr = `-----BEGIN CERTIFICATE REQUEST-----
+MIICijCCAXICAQAwRTELMAkGA1UEBhMCVVMxEzARBgNVBAgMClNvbWUtU3RhdGUx
+ITAfBgNVBAoMGEludGVybmV0IFdpZGdpdHMgUHR5IEx0ZDCCASIwDQYJKoZIhvcN
+AQEBBQADggEPADCCAQoCggEBALRiMLAHudeSA/xT8TBrAMOFRXqHqKL0S/tpFNoy
+test-placeholder-not-a-real-csr
+-----END CERTIFICATE REQUEST-----`
+
+      return [
+        {
+          name:     'Verify Token (GET /zones/:id)',
+          endpoint: `GET /zones/${z}`,
+          run:      () => fetch(`${BASE}/zones/${z}`, { headers: headers(token) }),
+          critical: true,
+        },
+        {
+          name:     'List Client Certificates (GET /zones/:id/client_certificates)',
+          endpoint: `GET /zones/${z}/client_certificates`,
+          run:      () => fetch(`${BASE}/zones/${z}/client_certificates`, { headers: headers(token) }),
+          critical: true,
+        },
+        {
+          name:     'Upload CSR — preflight only (POST /zones/:id/client_certificates)',
+          endpoint: `POST /zones/${z}/client_certificates`,
+          // We send a real request; CF will reject the body but we see if CORS allows it
+          run:      () => fetch(`${BASE}/zones/${z}/client_certificates`, {
+                      method: 'POST',
+                      headers: headers(token),
+                      body: JSON.stringify({ csr: testCsr, validity_days: 365 }),
+                    }),
+          critical: true,
+          note: 'CORS pass even if CF returns 400 (bad CSR body is expected)',
+        },
+        {
+          name:     'Hostname Associations (GET /zones/:id/certificate_authorities/hostname_associations)',
+          endpoint: `GET /zones/${z}/certificate_authorities/hostname_associations`,
+          run:      () => fetch(`${BASE}/zones/${z}/certificate_authorities/hostname_associations`, { headers: headers(token) }),
+          critical: true,
+        },
+        {
+          name:     'Zone Settings (GET /zones/:id/settings)',
+          endpoint: `GET /zones/${z}/settings`,
+          run:      () => fetch(`${BASE}/zones/${z}/settings`, { headers: headers(token) }),
+          critical: true,
+        },
+        {
+          name:     'Update Zone Setting — preflight only (PATCH /zones/:id/settings/websockets)',
+          endpoint: `PATCH /zones/${z}/settings/websockets`,
+          run:      () => fetch(`${BASE}/zones/${z}/settings/websockets`, {
+                      method: 'PATCH',
+                      headers: headers(token),
+                      body: JSON.stringify({ value: 'on' }),
+                    }),
+          critical: true,
+          note: 'Sends a real PATCH — will actually update the setting if token has permissions. Check note below.',
+        },
+        {
+          name:     'List WAF Rules (GET /zones/:id/rulesets)',
+          endpoint: `GET /zones/${z}/rulesets`,
+          run:      () => fetch(`${BASE}/zones/${z}/rulesets`, { headers: headers(token) }),
+          critical: true,
+        },
+        {
+          name:     'List Firewall Rules (GET /zones/:id/firewall/rules) [legacy]',
+          endpoint: `GET /zones/${z}/firewall/rules`,
+          run:      () => fetch(`${BASE}/zones/${z}/firewall/rules`, { headers: headers(token) }),
+          critical: false,
+        },
+        {
+          name:     'CF Access Apps (GET /accounts/:id/access/apps)',
+          endpoint: a ? `GET /accounts/${a}/access/apps` : '(skipped — no account ID)',
+          run:      a ? () => fetch(`${BASE}/accounts/${a}/access/apps`, { headers: headers(token) }) : null,
+          critical: false,
+          note: a ? undefined : 'Provide Account ID to test',
+        },
+      ]
+    }
+
+    // ---- UI helpers ----
+    function renderResults(tests) {
+      const container = document.getElementById('results')
+      container.innerHTML = ''
+      tests.forEach((t, i) => {
+        const el = document.createElement('div')
+        el.className = 'result'
+        el.id = `result-${i}`
+        el.innerHTML = `
+          <div>
+            <div class="result-name">${t.critical ? '🔴 ' : '🟡 '}${t.name}</div>
+            <div class="result-endpoint">${t.endpoint}</div>
+            ${t.note ? `<div class="result-detail">${t.note}</div>` : ''}
+          </div>
+          <span class="badge badge-pending" id="badge-${i}">pending</span>
+        `
+        container.appendChild(el)
+      })
+    }
+
+    function updateResult(i, result) {
+      const badge = document.getElementById(`badge-${i}`)
+      const detailEl = document.querySelector(`#result-${i} .result-detail`) ||
+        (() => {
+          const d = document.createElement('div')
+          d.className = 'result-detail'
+          document.querySelector(`#result-${i} > div`).appendChild(d)
+          return d
+        })()
+
+      if (result.corsBlocked) {
+        badge.className = 'badge badge-cors'
+        badge.textContent = 'CORS BLOCKED'
+        detailEl.textContent = result.detail
+      } else if (result.ok || result.httpOk) {
+        badge.className = 'badge badge-pass'
+        badge.textContent = `PASS (HTTP ${result.status})`
+        if (result.detail) detailEl.textContent = result.detail
+      } else if (result.skipped) {
+        badge.className = 'badge badge-pending'
+        badge.textContent = 'skipped'
+        detailEl.textContent = result.detail || ''
+      } else {
+        badge.className = 'badge badge-fail'
+        badge.textContent = `HTTP ${result.status}`
+        if (result.detail) detailEl.textContent = result.detail
+      }
+    }
+
+    async function runSingle(test) {
+      if (!test.run) return { skipped: true, detail: test.note || '' }
+      try {
+        const res = await test.run()
+        let body = {}
+        try { body = await res.json() } catch {}
+        // CORS pass = we got a response (even 4xx). CORS fail = TypeError (network error)
+        return {
+          ok: res.ok,
+          httpOk: res.status < 500,
+          status: res.status,
+          detail: body.errors?.[0]?.message || body.error || '',
+          corsBlocked: false,
+        }
+      } catch (err) {
+        // TypeError: Failed to fetch  =>  CORS blocked or network error
+        const corsBlocked = err instanceof TypeError
+        return {
+          ok: false,
+          corsBlocked,
+          status: null,
+          detail: corsBlocked
+            ? 'Fetch failed — likely CORS or network error. Check DevTools > Network for details.'
+            : String(err),
+        }
+      }
+    }
+
+    async function runTests() {
+      const { token, zoneId } = getInputs()
+      if (!token || !zoneId) {
+        alert('Token and Zone ID are required.')
+        return
+      }
+      if (!/^[a-fA-F0-9]{32}$/.test(zoneId)) {
+        alert('Zone ID should be a 32-character hex string.')
+        return
+      }
+
+      const btn = document.getElementById('runBtn')
+      btn.disabled = true
+      btn.textContent = 'Running…'
+
+      const inputs = getInputs()
+      const tests = makeTests(inputs)
+      renderResults(tests)
+      document.getElementById('summary').style.display = 'none'
+
+      const results = []
+      for (let i = 0; i < tests.length; i++) {
+        const badge = document.getElementById(`badge-${i}`)
+        badge.className = 'badge badge-running'
+        badge.textContent = 'running…'
+
+        const r = await runSingle(tests[i])
+        results.push({ test: tests[i], result: r })
+        updateResult(i, r)
+      }
+
+      // Verdict
+      const critical = results.filter(r => r.test.critical)
+      const blocked  = critical.filter(r => r.result.corsBlocked)
+      const failed   = critical.filter(r => !r.result.corsBlocked && !r.result.ok && !r.result.httpOk && !r.result.skipped)
+
+      let verdict = ''
+      if (blocked.length === 0) {
+        verdict += '✅ No CORS blocks detected on critical endpoints.\n\n'
+        verdict += 'The Cloudflare API supports cross-origin requests with Bearer token auth.\n'
+        verdict += 'Frontend SPA approach is viable — no proxy needed.\n\n'
+      } else {
+        verdict += `❌ ${blocked.length} critical endpoint(s) blocked by CORS:\n`
+        blocked.forEach(r => { verdict += `  - ${r.test.name}\n` })
+        verdict += '\nAction required: evaluate Cloudflare Worker proxy or semi-automated flow.\n\n'
+      }
+      if (failed.length > 0) {
+        verdict += `⚠  ${failed.length} endpoint(s) returned HTTP errors (auth/permissions — not CORS):\n`
+        failed.forEach(r => { verdict += `  - ${r.test.name}: HTTP ${r.result.status} ${r.result.detail}\n` })
+        verdict += '\nCheck token scopes.\n'
+      }
+
+      verdict += '\n--- Raw results ---\n'
+      results.forEach(({ test, result }) => {
+        const status = result.corsBlocked ? 'CORS_BLOCKED'
+          : result.skipped ? 'SKIPPED'
+          : result.httpOk ? `HTTP_${result.status}`
+          : `HTTP_${result.status}_ERROR`
+        verdict += `${status.padEnd(18)} ${test.name}\n`
+      })
+
+      document.getElementById('summaryText').textContent = verdict
+      document.getElementById('summary').style.display = 'block'
+
+      btn.disabled = false
+      btn.textContent = 'Run Tests Again'
+    }
+  </script>
+
+  <div class="note" style="margin-top:1.5rem">
+    ⚠ <strong>Note on the PATCH test:</strong> The "Update Zone Setting" test sends a real <code>PATCH</code> request that will set <code>websockets=on</code> if your token has edit permissions. This is safe (it's the correct value for HASS) but be aware it will make an actual change.
+  </div>
+</body>
+</html>
