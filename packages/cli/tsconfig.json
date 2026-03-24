@@ -1,0 +1,22 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "composite": true,
+    "types": ["node", "zx"],
+    "paths": {
+      "@sag/utils": ["src/utils"],
+      "@sag/menu": ["src/menu"],
+      "@sag/types": ["src/types.ts"],
+      "@sag/shared/core": ["../shared/src/core"],
+      "@sag/shared/schemas": ["../shared/src/schemas"],
+      "@sag/providers": ["src/providers"],
+      "@sag/topics": ["src/topics"]
+    }
+  },
+  "references": [
+    { "path": "../shared" }
+  ],
+  "include": ["src/**/*", "vite.config.ts", "vitest.config.ts"],
+  "exclude": ["node_modules", "dist"]
+}

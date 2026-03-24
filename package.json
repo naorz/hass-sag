@@ -1,29 +1,24 @@
 {
   "name": "hass-sag",
+  "private": true,
   "version": "1.0.0",
-  "description": "Home Assistant Secure Access Generator - mTLS & GitHub Onboarding",
-  "main": "dist/sag.mjs",
-  "bin": {
-    "sag": "dist/sag.mjs"
-  },
-  "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
   "scripts": {
-    "dev": "bun src/main.ts",
+    "dev": "bun --cwd packages/cli run dev",
+    "build": "bun run --cwd packages/cli build",
+    "test": "bun run --cwd packages/shared test && bun run --cwd packages/cli test",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "prebuild": "bun run lint:fix",
-    "build": "vite build && chmod +x dist/sag.mjs",
     "release": "standard-version",
     "release:patch": "standard-version --release-as patch",
     "release:minor": "standard-version --release-as minor",
     "release:major": "standard-version --release-as major",
-    "prepublishOnly": "bun run build",
     "prepare": "husky"
   },
   "lint-staged": {
-    "src/**/*.ts": [
+    "packages/**/*.ts": [
       "eslint --fix"
     ]
   },
@@ -43,13 +38,6 @@
   ],
   "author": "NaorZ",
   "license": "MIT",
-  "dependencies": {
-    "@inquirer/prompts": "^8.3.2",
-    "cloudflare": "^5.2.0",
-    "qrcode-terminal": "^0.12.0",
-    "zod": "^4.3.6",
-    "zx": "^8.0.0"
-  },
   "engines": {
     "node": ">=22.0.0",
     "bun": ">=1.0.0"

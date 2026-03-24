@@ -1,0 +1,25 @@
+{
+  "name": "@sag/cli",
+  "version": "1.0.0",
+  "description": "Home Assistant Secure Access Generator - CLI",
+  "main": "dist/sag.mjs",
+  "bin": {
+    "sag": "dist/sag.mjs"
+  },
+  "type": "module",
+  "scripts": {
+    "dev": "bun src/main.ts",
+    "build": "vite build && chmod +x dist/sag.mjs",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "prepublishOnly": "bun run build"
+  },
+  "dependencies": {
+    "@sag/shared": "workspace:*",
+    "@inquirer/prompts": "^8.3.2",
+    "cloudflare": "^5.2.0",
+    "qrcode-terminal": "^0.12.0",
+    "zod": "^4.3.6",
+    "zx": "^8.0.0"
+  }
+}

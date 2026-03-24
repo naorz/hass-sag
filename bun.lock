@@ -4,13 +4,6 @@
   "workspaces": {
     "": {
       "name": "hass-sag",
-      "dependencies": {
-        "@inquirer/prompts": "^8.3.2",
-        "cloudflare": "^5.2.0",
-        "qrcode-terminal": "^0.12.0",
-        "zod": "^4.3.6",
-        "zx": "^8.0.0",
-      },
       "devDependencies": {
         "@commitlint/cli": "^20.3.1",
         "@commitlint/config-conventional": "^20.3.1",
@@ -33,6 +26,28 @@
         "typescript-eslint": "^8.53.1",
         "vite": "^7.3.1",
         "vitest": "^4.0.18",
+      },
+    },
+    "packages/cli": {
+      "name": "@sag/cli",
+      "version": "1.0.0",
+      "bin": {
+        "sag": "dist/sag.mjs",
+      },
+      "dependencies": {
+        "@inquirer/prompts": "^8.3.2",
+        "@sag/shared": "workspace:*",
+        "cloudflare": "^5.2.0",
+        "qrcode-terminal": "^0.12.0",
+        "zod": "^4.3.6",
+        "zx": "^8.0.0",
+      },
+    },
+    "packages/shared": {
+      "name": "@sag/shared",
+      "version": "1.0.0",
+      "dependencies": {
+        "zod": "^4.3.6",
       },
     },
   },
@@ -250,6 +265,10 @@
     "@rollup/rollup-win32-x64-msvc": ["@rollup/rollup-win32-x64-msvc@4.60.0", "", { "os": "win32", "cpu": "x64" }, "sha512-PrsWNQ8BuE00O3Xsx3ALh2Df8fAj9+cvvX9AIA6o4KpATR98c9mud4XtDWVvsEuyia5U4tVSTKygawyJkjm60w=="],
 
     "@rtsao/scc": ["@rtsao/scc@1.1.0", "", {}, "sha512-zt6OdqaDoOnJ1ZYsCYGt9YmWzDXl4vQdKTyJev62gFhRGKdx7mcT54V9KIjg+d2wi9EXsPvAPKe7i7WjfVWB8g=="],
+
+    "@sag/cli": ["@sag/cli@workspace:packages/cli"],
+
+    "@sag/shared": ["@sag/shared@workspace:packages/shared"],
 
     "@simple-libs/child-process-utils": ["@simple-libs/child-process-utils@1.0.2", "", { "dependencies": { "@simple-libs/stream-utils": "^1.2.0" } }, "sha512-/4R8QKnd/8agJynkNdJmNw2MBxuFTRcNFnE5Sg/G+jkSsV8/UBgULMzhizWWW42p8L5H7flImV2ATi79Ove2Tw=="],
 

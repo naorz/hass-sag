@@ -653,11 +653,11 @@ function requireVendorCore() {
           }
           const integer = Number.parseInt(colorString, 16);
           return [
-            /* eslint-disable no-bitwise */
+             
             integer >> 16 & 255,
             integer >> 8 & 255,
             integer & 255
-            /* eslint-enable no-bitwise */
+             
           ];
         },
         enumerable: false
@@ -18425,7 +18425,7 @@ ${cn.comment}` : item.comment;
     createAlias(node, name) {
       if (!node.anchor) {
         const prev = anchorNames(this);
-        node.anchor = // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
+        node.anchor =  
         !name || prev.has(name) ? findNewAnchor(name || "a", prev) : name;
       }
       return new Alias(node.anchor);
@@ -18448,7 +18448,7 @@ ${cn.comment}` : item.comment;
       const { aliasDuplicateObjects, anchorPrefix, flow, keepUndefined, onTagObj, tag } = options != null ? options : {};
       const { onAnchor, setAnchors, sourceObjects } = createNodeAnchors(
         this,
-        // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
+         
         anchorPrefix || "a"
       );
       const ctx = {

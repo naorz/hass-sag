@@ -15,7 +15,7 @@ export default tseslint.config(
         ...globals.node,
       },
       parserOptions: {
-        project: './tsconfig.json',
+        project: ['./packages/cli/tsconfig.json', './packages/shared/tsconfig.json'],
       },
     },
     plugins: {
@@ -67,11 +67,11 @@ export default tseslint.config(
               message: 'Avoid importing from the directory index (.). Import the specific file instead.',
             },
             {
-              group: ['**/src/utils*', '**/src/menu*', '**/src/types*'],
-              message: 'Use @sag/ aliases for core modules (e.g., @sag/utils).',
+              group: ['**/src/utils*', '**/src/menu*', '**/src/types*', '**/src/core*', '**/src/schemas*'],
+              message: 'Use @sag/ aliases for core modules (e.g., @sag/utils, @sag/shared/core).',
             },
             {
-              group: ['../utils*', '../../utils*', '../menu*', '../../menu*', '../types*', '../../types*'],
+              group: ['../utils*', '../../utils*', '../menu*', '../../menu*', '../types*', '../../types*', '../core*', '../../core*', '../schemas*', '../../schemas*'],
               message: 'Use @sag/ aliases for core modules instead of relative paths.',
             },
           ],
@@ -87,7 +87,9 @@ export default tseslint.config(
   {
     ignores: [
       'dist/**',
+      'packages/*/dist/**',
       'node_modules/**',
+      'packages/*/node_modules/**',
       'eslint.config.js',
       'commitlint.config.js',
       '.husky/**',
